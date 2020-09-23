@@ -138,6 +138,7 @@ AddEventHandler('esx_vehicleshop:getStockItem', function(itemName, count)
 	local _source = source
 	local xPlayer = ESX.GetPlayerFromId(_source)
 
+    if xPlayer.job.name == 'cardealer' then
 	TriggerEvent('esx_addoninventory:getSharedInventory', 'society_cardealer', function(inventory)
 		local item = inventory.getItem(itemName)
 
@@ -155,6 +156,9 @@ AddEventHandler('esx_vehicleshop:getStockItem', function(itemName, count)
 		else
 			xPlayer.showNotification(_U('not_enough_in_society'))
 		end
+	   else
+		print(('[esx_vehicleshop] [^3WARNING^7] %s attempted to trigger getStockItem (cheating)'):format(xPlayer.identifier))
+	    end
 	end)
 end)
 
@@ -173,6 +177,9 @@ AddEventHandler('esx_vehicleshop:putStockItems', function(itemName, count)
 		else
 			xPlayer.showNotification(_U('invalid_amount'))
 		end
+	else
+		print(('[esx_vehicleshop] [^3WARNING^7] %s attempted to trigger putStockItem (cheating)'):format(xPlayer.identifier))
+	    end
 	end)
 end)
 

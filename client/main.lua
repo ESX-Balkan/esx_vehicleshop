@@ -17,36 +17,23 @@ E::::::::::::::::::::ES:::::::::::::::SS X:::::X       X:::::X     B::::::::::::
 EEEEEEEEEEEEEEEEEEEEEE SSSSSSSSSSSSSSS   XXXXXXX       XXXXXXX     BBBBBBBBBBBBBBBBBAAAAAAA                   AAAAAAALLLLLLLLLLLLLLLLLLLLLLLLKKKKKKKKK    KKKKKKKAAAAAAA                   AAAAAAANNNNNNNN         NNNNNNN
 ]]                                                                                                                                                                                                                        
 
-local HasAlreadyEnteredMarker, IsInShopMenu = false, false
+local HasAlreadyEnteredMarker, IsInShopMenu, kupioauto = false, false, false
 local CurrentAction, CurrentActionMsg, LastZone, currentDisplayVehicle, CurrentVehicleData
 local CurrentActionData, Vehicles, Categories = {}, {}, {}
-
 ESX = nil
 
 Citizen.CreateThread(function()
-	while ESX == nil do
-		TriggerEvent('esx:getSharedObject', function(obj) ESX = obj end)
-		Citizen.Wait(0)
-	end
-
+	while ESX == nil do TriggerEvent('esx:getSharedObject', function(obj) ESX = obj end) Citizen.Wait(100) end
 	Citizen.Wait(10000)
-
-	ESX.TriggerServerCallback('esx_vehicleshop:getCategories', function(categories)
-		Categories = categories
-	end)
-
-	ESX.TriggerServerCallback('esx_vehicleshop:getVehicles', function(vehicles)
-		Vehicles = vehicles
-	end)
+	ESX.TriggerServerCallback('esx_vehicleshop:getCategories', function(categories) Categories = categories end)
+	ESX.TriggerServerCallback('esx_vehicleshop:getVehicles', function(vehicles) Vehicles = vehicles end)
 
 	if Config.EnablePlayerManagement then
 		if ESX.PlayerData.job.name == 'cardealer' then
 			Config.Zones.ShopEntering.Type = 1
-
 			if ESX.PlayerData.job.grade_name == 'boss' then
 				Config.Zones.BossActions.Type = 1
 			end
-
 		else
 			Config.Zones.ShopEntering.Type = -1
 			Config.Zones.BossActions.Type  = -1
@@ -124,13 +111,13 @@ function ReturnVehicleProvider()
 		end
 
 		ESX.UI.Menu.Open('default', GetCurrentResourceName(), 'return_provider_menu', {
-			title    = _U('return_provider_menu'),
-			align    = 'top-left',
+			title = _U('return_provider_menu'),
+			align = 'top-left',
 			elements = elements
 		}, function(data, menu)
 			TriggerServerEvent('esx_vehicleshop:returnProvider', data.current.value)
 
-			Citizen.Wait(300)
+			Wait(50)
 			menu.close()
 			ReturnVehicleProvider()
 		end, function(data, menu)
@@ -140,12 +127,11 @@ function ReturnVehicleProvider()
 end
 
 function StartShopRestriction()
-	Citizen.CreateThread(function()
+	CreateThread(function()
 		while IsInShopMenu do
-			Citizen.Wait(0)
-
-			DisableControlAction(0, 75,  true) -- Disable exit vehicle
-			DisableControlAction(27, 75, true) -- Disable exit vehicle
+			Wait(0)
+			DisableControlAction(0, 75,  true)
+			DisableControlAction(27, 75, true)
 		end
 	end)
 end
@@ -207,18 +193,18 @@ function OpenShopMenu()
 		table.sort(options)
 
 		table.insert(elements, {
-			name    = category.name,
-			label   = category.label,
-			value   = 0,
-			type    = 'slider',
-			max     = #Categories[i],
+			name = category.name,
+			label = category.label,
+			value = 0,
+			type = 'slider',
+			max = #Categories[i],
 			options = options
 		})
 	end
 
 	ESX.UI.Menu.Open('default', GetCurrentResourceName(), 'vehicle_shop', {
-		title    = _U('car_dealer'),
-		align    = 'top-left',
+		title = _U('car_dealer'),
+		align = 'top-left',
 		elements = elements
 	}, function(data, menu)
 		local vehicleData = vehiclesByCategory[data.current.name][data.current.value + 1]
@@ -234,42 +220,60 @@ function OpenShopMenu()
 				if Config.EnablePlayerManagement then
 					ESX.TriggerServerCallback('esx_vehicleshop:buyCarDealerVehicle', function(success)
 						if success then
+							if not kupioauto then
+							menu2.close()
+							menu.close()
 							IsInShopMenu = false
 							DeleteDisplayVehicleInsideShop()
 
-							CurrentAction     = 'shop_menu'
-							CurrentActionMsg  = _U('shop_menu')
+							CurrentAction = 'shop_menu'
+							CurrentActionMsg = _U('shop_menu')
 							CurrentActionData = {}
 
 							local playerPed = PlayerPedId()
 							FreezeEntityPosition(playerPed, false)
 							SetEntityVisible(playerPed, true)
 							SetEntityCoords(playerPed, Config.Zones.ShopEntering.Pos)
-
+							ESX.ShowNotification(_U('vehicle_purchased'))
+							Wait(1000)
+							kupioauto = false
+						else
 							menu2.close()
 							menu.close()
-							ESX.ShowNotification(_U('vehicle_purchased'))
+							IsInShopMenu = false
+							DeleteDisplayVehicleInsideShop()
+							ESX.ShowHelpNotification('Vec si kupio vozilo! Sacekaj malo')
+						end
 						else
 							ESX.ShowNotification(_U('broke_company'))
 						end
 					end, vehicleData.model)
 				else
 					local generatedPlate = GeneratePlate()
-
 					ESX.TriggerServerCallback('esx_vehicleshop:buyVehicle', function(success)
 						if success then
-							IsInShopMenu = false
+							if not kupioauto then
+							kupioauto = true
 							menu2.close()
 							menu.close()
+							IsInShopMenu = false
 							DeleteDisplayVehicleInsideShop()
-
 							ESX.Game.SpawnVehicle(vehicleData.model, Config.Zones.ShopOutside.Pos, Config.Zones.ShopOutside.Heading, function(vehicle)
 								TaskWarpPedIntoVehicle(playerPed, vehicle, -1)
 								SetVehicleNumberPlateText(vehicle, generatedPlate)
-
 								FreezeEntityPosition(playerPed, false)
 								SetEntityVisible(playerPed, true)
 							end)
+							while not HasModelLoaded(vehicleData.model) do Wait(100) print('AHH SEX') end
+							Wait(1000)
+							kupioauto = false
+						else
+							menu2.close()
+							menu.close()
+							IsInShopMenu = false
+							DeleteDisplayVehicleInsideShop()
+							ESX.ShowHelpNotification('Vec si kupio vozilo! Sacekaj malo')
+						end
 						else
 							ESX.ShowNotification(_U('not_enough_money'))
 						end
@@ -344,8 +348,8 @@ function OpenResellerMenu()
 	ESX.UI.Menu.CloseAll()
 
 	ESX.UI.Menu.Open('default', GetCurrentResourceName(), 'reseller', {
-		title    = _U('car_dealer'),
-		align    = 'top-left',
+		title = _U('car_dealer'),
+		align = 'top-left',
 		elements = {
 			{label = _U('buy_vehicle'),                    value = 'buy_vehicle'},
 			{label = _U('pop_vehicle'),                    value = 'pop_vehicle'},
@@ -461,8 +465,8 @@ function OpenResellerMenu()
 	end, function(data, menu)
 		menu.close()
 
-		CurrentAction     = 'reseller_menu'
-		CurrentActionMsg  = _U('shop_menu')
+		CurrentAction = 'reseller_menu'
+		CurrentActionMsg = _U('shop_menu')
 		CurrentActionData = {}
 	end)
 end
@@ -481,8 +485,8 @@ function OpenPopVehicleMenu()
 		end
 
 		ESX.UI.Menu.Open('default', GetCurrentResourceName(), 'commercial_vehicles', {
-			title    = _U('vehicle_dealer'),
-			align    = 'top-left',
+			title = _U('vehicle_dealer'),
+			align = 'top-left',
 			elements = elements
 		}, function(data, menu)
 			local model = data.current.value
@@ -531,8 +535,8 @@ function OpenBossActionsMenu()
 	ESX.UI.Menu.CloseAll()
 
 	ESX.UI.Menu.Open('default', GetCurrentResourceName(), 'reseller',{
-		title    = _U('dealer_boss'),
-		align    = 'top-left',
+		title = _U('dealer_boss'),
+		align = 'top-left',
 		elements = {
 			{label = _U('boss_actions'), value = 'boss_actions'},
 			{label = _U('boss_sold'), value = 'sold_vehicles'}
@@ -573,8 +577,8 @@ function OpenBossActionsMenu()
 	end, function(data, menu)
 		menu.close()
 
-		CurrentAction     = 'boss_actions_menu'
-		CurrentActionMsg  = _U('shop_menu')
+		CurrentAction = 'boss_actions_menu'
+		CurrentActionMsg = _U('shop_menu')
 		CurrentActionData = {}
 	end)
 end
@@ -802,13 +806,11 @@ end)
 -- Enter / Exit marker events & Draw Markers
 Citizen.CreateThread(function()
 	while true do
-		Citizen.Wait(0)
+		Citizen.Wait(7)
 		local playerCoords = GetEntityCoords(PlayerPedId())
 		local isInMarker, letSleep, currentZone = false, true
-
 		for k,v in pairs(Config.Zones) do
 			local distance = #(playerCoords - v.Pos)
-
 			if distance < Config.DrawDistance then
 				letSleep = false
 
@@ -834,19 +836,16 @@ Citizen.CreateThread(function()
 		end
 
 		if letSleep then
-			Citizen.Wait(500)
+			Citizen.Wait(1500)
 		end
 	end
 end)
-
 -- Key controls
 Citizen.CreateThread(function()
 	while true do
-		Citizen.Wait(0)
-
+		Citizen.Wait(5)
 		if CurrentAction then
 			ESX.ShowHelpNotification(CurrentActionMsg)
-
 			if IsControlJustReleased(0, 38) then
 				if CurrentAction == 'shop_menu' then
 					if Config.LicenseEnable then
@@ -887,14 +886,13 @@ Citizen.CreateThread(function()
 				CurrentAction = nil
 			end
 		else
-			Citizen.Wait(500)
+			Citizen.Wait(1000)
 		end
 	end
 end)
 
 Citizen.CreateThread(function()
 	RequestIpl('shr_int') -- Load walls and floor
-
 	local interiorID = 7170
 	LoadInterior(interiorID)
 	EnableInteriorProp(interiorID, 'csr_beforeMission') -- Load large window

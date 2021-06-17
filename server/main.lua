@@ -1,5 +1,6 @@
 ESX = nil
 local categories, vehicles = {}, {}
+local kupujeauto = {}
 
 TriggerEvent('esx:getSharedObject', function(obj) ESX = obj end)
 
@@ -156,10 +157,10 @@ AddEventHandler('esx_vehicleshop:getStockItem', function(itemName, count)
 		else
 			xPlayer.showNotification(_U('not_enough_in_society'))
 		end
-	   else
-		print(('[esx_vehicleshop] [^3WARNING^7] %s attempted to trigger getStockItem (cheating)'):format(xPlayer.identifier))
-	    end
 	end)
+    else
+        print(('[esx_vehicleshop] [^3WARNING^7] %s attempted to trigger getStockItem (cheating)'):format(xPlayer.identifier))
+    end
 end)
 
 RegisterNetEvent('esx_vehicleshop:putStockItems')
@@ -178,19 +179,14 @@ AddEventHandler('esx_vehicleshop:putStockItems', function(itemName, count)
 		else
 			xPlayer.showNotification(_U('invalid_amount'))
 		end
-	else
-		print(('[esx_vehicleshop] [^3WARNING^7] %s attempted to trigger putStockItem (cheating)'):format(xPlayer.identifier))
-	    end
 	end)
+    else
+        print(('[esx_vehicleshop] [^3WARNING^7] %s attempted to trigger putStockItem (cheating)'):format(xPlayer.identifier))
+    end
 end)
 
-ESX.RegisterServerCallback('esx_vehicleshop:getCategories', function(source, cb)
-	cb(categories)
-end)
-
-ESX.RegisterServerCallback('esx_vehicleshop:getVehicles', function(source, cb)
-	cb(vehicles)
-end)
+ESX.RegisterServerCallback('esx_vehicleshop:getCategories', function(source, cb) cb(categories) end)
+ESX.RegisterServerCallback('esx_vehicleshop:getVehicles', function(source, cb) cb(vehicles) end)
 
 ESX.RegisterServerCallback('esx_vehicleshop:buyVehicle', function(source, cb, model, plate)
 	local xPlayer = ESX.GetPlayerFromId(source)
@@ -204,16 +200,22 @@ ESX.RegisterServerCallback('esx_vehicleshop:buyVehicle', function(source, cb, mo
 	end
 
 	if modelPrice and xPlayer.getMoney() >= modelPrice then
-		xPlayer.removeMoney(modelPrice)
-
-		MySQL.Async.execute('INSERT INTO owned_vehicles (owner, plate, vehicle) VALUES (@owner, @plate, @vehicle)', {
-			['@owner']   = xPlayer.identifier,
-			['@plate']   = plate,
-			['@vehicle'] = json.encode({model = GetHashKey(model), plate = plate})
-		}, function(rowsChanged)
-			xPlayer.showNotification(_U('vehicle_belongs', plate))
-			cb(true)
-		end)
+        if kupujeauto[source] == nil then
+            kupujeauto[source] = true
+		    xPlayer.removeMoney(modelPrice)
+		    MySQL.Async.execute('INSERT INTO owned_vehicles (owner, plate, vehicle) VALUES (@owner, @plate, @vehicle)', {
+			    ['@owner']   = xPlayer.identifier,
+			    ['@plate']   = plate,
+			    ['@vehicle'] = json.encode({model = GetHashKey(model), plate = plate})
+		    }, function(rowsChanged)
+			    xPlayer.showNotification(_U('vehicle_belongs', plate))
+			    cb(true)
+                Wait(5000)
+                kupujeauto[source] = nil
+		    end)
+        else
+            print(('[esx_vehicleshop] [^3UPOZORENJE^7] %s je pokusao da triggeruje vise puta(glichanje)'):format(xPlayer.identifier))
+        end
 	else
 		cb(false)
 	end

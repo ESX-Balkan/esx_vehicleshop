@@ -362,9 +362,17 @@ ESX.RegisterServerCallback('esx_vehicleshop:resellVehicle', function(source, cb,
 
 							if vehicle.model == model then
 								if vehicle.plate == plate then
-									xPlayer.addMoney(resellPrice)
-									RemoveOwnedVehicle(plate)
-									cb(true)
+                                    if kupujeauto[source] == nil then
+                                        kupujeauto[source] = true
+									    xPlayer.addMoney(resellPrice)
+									    RemoveOwnedVehicle(plate)
+									    cb(true)
+                                        Wait(5000)
+                                        kupujeauto[source] = true
+                                    else
+                                        print(('[esx_vehicleshop] [^3UPOZORENJE^7] %s je pokusao da proda vozilo preko glicha!'):format(xPlayer.identifier))
+                                        cb(false)
+                                    end
 								else
 									print(('[esx_vehicleshop] [^3WARNING^7] %s attempted to sell an vehicle with plate mismatch!'):format(xPlayer.identifier))
 									cb(false)
